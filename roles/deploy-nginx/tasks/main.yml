@@ -12,7 +12,7 @@
 
 - name: 分发 Nginx Docker 镜像
   ansible.builtin.copy:
-    src: "docker-images/{{ nginx_image_repo | replace('/', '_') }}-{{ nginx_image_tag }}.tar"
+    src: "../../files/docker-images/{{ nginx_image_repo | replace('/', '_') }}-{{ nginx_image_tag }}.tar"
     dest: "{{ image_temp_dir }}/nginx.tar"
 
 - name: 加载 Nginx Docker 镜像

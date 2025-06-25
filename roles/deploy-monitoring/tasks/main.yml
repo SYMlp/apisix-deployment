@@ -15,7 +15,7 @@
 
 - name: 分发 Prometheus 和 Grafana Docker 镜像
   ansible.builtin.copy:
-    src: "docker-images/{{ item.repo | replace('/', '_') }}-{{ item.tag }}.tar"
+    src: "../../files/docker-images/{{ item.repo | replace('/', '_') }}-{{ item.tag }}.tar"
     dest: "{{ image_temp_dir }}/{{ item.name }}.tar"
   loop:
     - { repo: "{{ prometheus_image_repo }}", tag: "{{ prometheus_image_tag }}", name: "prometheus" }

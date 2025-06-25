@@ -1,0 +1,34 @@
+---
+# tasks file for deploy-zookeeper
+
+- name: 确保 Zookeeper 的数据和日志目录存在
+  ansible.builtin.file:
+    path: "{{ deploy_base_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - zookeeper-data
+    - zookeeper-logs
+    - zookeeper-conf
+
+- name: 分发 Zookeeper Docker 镜像
+  ansible.builtin.copy:
+    src: "../../files/docker-images/{{ zookeeper_image_repo | replace('/', '_') }}-{{ zookeeper_image_tag }}.tar"
+    dest: "{{ image_temp_dir }}/zookeeper.tar"
+
+- name: 加载 Zookeeper Docker 镜像
+  ansible.builtin.shell: "docker load -i {{ image_temp_dir }}/zookeeper.tar"
+  changed_when: false
+
+- name: 渲染 Zookeeper docker-compose 文件
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ deploy_base_dir }}/zookeeper-conf/docker-compose.yml"
+
+- name: 启动 Zookeeper 服务
+  ansible.builtin.shell: |
+    cd {{ deploy_base_dir }}/zookeeper-conf
+    docker-compose up -d
+  args:
+    chdir: "{{ deploy_base_dir }}/zookeeper-conf"
+  changed_when: false 

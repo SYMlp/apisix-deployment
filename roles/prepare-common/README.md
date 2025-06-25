@@ -16,3 +16,4 @@
 
 -   `deploy_base_dir`: 部署的根目录路径。在 `inventory.ini` 中定义。
 -   `ansible_user`: 用于设置目录所有者的用户。在 `inventory.ini` 中定义。
+ 

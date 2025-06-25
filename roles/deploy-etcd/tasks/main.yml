@@ -13,7 +13,7 @@
 
 - name: 分发 etcd Docker 镜像
   ansible.builtin.copy:
-    src: "docker-images/{{ etcd_image_repo | replace('/', '_') }}-{{ etcd_image_tag }}.tar"
+    src: "../../files/docker-images/{{ etcd_image_repo | replace('/', '_') }}-{{ etcd_image_tag }}.tar"
     dest: "{{ image_temp_dir }}/etcd.tar"
 
 - name: 加载 etcd Docker 镜像

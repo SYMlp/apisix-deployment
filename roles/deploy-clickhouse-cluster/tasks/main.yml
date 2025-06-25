@@ -1,0 +1,44 @@
+---
+# tasks file for deploy-clickhouse-cluster
+
+- name: 确保 ClickHouse 集群的配置、数据和日志目录存在
+  ansible.builtin.file:
+    path: "{{ deploy_base_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - clickhouse-cluster-conf
+    - clickhouse-cluster-data
+    - clickhouse-cluster-logs
+
+- name: 分发 ClickHouse Docker 镜像
+  ansible.builtin.copy:
+    src: "../../files/docker-images/{{ clickhouse_image_repo | replace('/', '_') }}-{{ clickhouse_image_tag }}.tar"
+    dest: "{{ image_temp_dir }}/clickhouse.tar"
+
+- name: 加载 ClickHouse Docker 镜像
+  ansible.builtin.shell: "docker load -i {{ image_temp_dir }}/clickhouse.tar"
+  changed_when: false
+
+- name: 渲染 docker-compose 文件
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ deploy_base_dir }}/clickhouse-cluster-conf/docker-compose.yml"
+
+- name: 渲染 ClickHouse 集群配置文件
+  ansible.builtin.template:
+    src: config.xml.j2
+    dest: "{{ deploy_base_dir }}/clickhouse-cluster-conf/config.xml"
+
+- name: 渲染 ClickHouse 用户配置文件
+  ansible.builtin.template:
+    src: users.xml.j2
+    dest: "{{ deploy_base_dir }}/clickhouse-cluster-conf/users.xml"
+
+- name: 启动 ClickHouse 服务
+  ansible.builtin.shell: |
+    cd {{ deploy_base_dir }}/clickhouse-cluster-conf
+    docker-compose up -d
+  args:
+    chdir: "{{ deploy_base_dir }}/clickhouse-cluster-conf"
+  changed_when: false 

@@ -25,3 +25,4 @@
 
 -   `deploy_base_dir`: 部署的根目录路径。
 -   `groups['monitoring_node']`: Ansible 内置变量，用于判断当前主机是否存在于 `monitoring_node` 组中。
+ 

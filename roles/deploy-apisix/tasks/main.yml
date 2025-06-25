@@ -13,7 +13,7 @@
 
 - name: 分发 APISIX 和 Dashboard Docker 镜像
   ansible.builtin.copy:
-    src: "docker-images/{{ item.repo | replace('/', '_') }}-{{ item.tag }}.tar"
+    src: "../../files/docker-images/{{ item.repo | replace('/', '_') }}-{{ item.tag }}.tar"
     dest: "{{ image_temp_dir }}/{{ item.name }}.tar"
   loop:
     - { repo: "{{ apisix_image_repo }}", tag: "{{ apisix_image_tag }}", name: "apisix" }

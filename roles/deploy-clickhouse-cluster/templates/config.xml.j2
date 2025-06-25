@@ -1,0 +1,32 @@
+<clickhouse>
+    <!-- 集群拓扑定义 -->
+    <remote_servers>
+        <{{ clickhouse_cluster_name }}>
+            <shard>
+                <internal_replication>true</internal_replication>
+                {% for host in groups['clickhouse_cluster_nodes'] %}
+                <replica>
+                    <host>{{ host }}</host>
+                    <port>9000</port>
+                </replica>
+                {% endfor %}
+            </shard>
+        </{{ clickhouse_cluster_name }}>
+    </remote_servers>
+
+    <!-- Zookeeper 配置 -->
+    <zookeeper>
+        {% for host in groups['zookeeper_nodes'] %}
+        <node>
+            <host>{{ host }}</host>
+            <port>{{ zookeeper_client_port }}</port>
+        </node>
+        {% endfor %}
+    </zookeeper>
+
+    <!-- 数据副本的宏定义 -->
+    <macros>
+        <shard>{shard}</shard>
+        <replica>{replica}</replica>
+    </macros>
+</clickhouse> 

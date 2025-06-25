@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  zookeeper:
+    image: "{{ zookeeper_image_repo }}:{{ zookeeper_image_tag }}"
+    container_name: "zookeeper-{{ hostvars[inventory_hostname]['zoo_id'] }}"
+    restart: always
+    ports:
+      - "{{ zookeeper_client_port }}:2181"
+      - "2888:2888"
+      - "3888:3888"
+    volumes:
+      - "{{ deploy_base_dir }}/zookeeper-data:/data"
+      - "{{ deploy_base_dir }}/zookeeper-logs:/datalog"
+    environment:
+      ZOO_MY_ID: "{{ hostvars[inventory_hostname]['zoo_id'] }}"
+      ZOO_SERVERS: "{% for host in groups['zookeeper_nodes'] %}server.{{ hostvars[host]['zoo_id'] }}={{ host }}:2888:3888 {% endfor %}" 

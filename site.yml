@@ -37,4 +37,9 @@
   hosts: nginx_nodes
   become: true
   roles:
-    - role: deploy-nginx 
+    - role: deploy-nginx
+
+- name: Deploy ClickHouse Server
+  hosts: clickhouse_node
+  roles:
+    - deploy-clickhouse 

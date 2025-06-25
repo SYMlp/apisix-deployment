@@ -1,0 +1,15 @@
+---
+# site-clickhouse-cluster.yml
+# This playbook deploys a high-availability ClickHouse cluster with Zookeeper.
+
+- name: Deploy Zookeeper Cluster
+  hosts: zookeeper_nodes
+  roles:
+    - deploy-zookeeper
+  become: yes
+
+- name: Deploy ClickHouse Cluster
+  hosts: clickhouse_cluster_nodes
+  roles:
+    - deploy-clickhouse-cluster
+  become: yes 
