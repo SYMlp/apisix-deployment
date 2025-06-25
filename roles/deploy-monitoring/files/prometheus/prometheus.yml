@@ -1,0 +1,31 @@
+# 全局配置
+global:
+  scrape_interval: 15s # 每 15 秒抓取一次指标
+  evaluation_interval: 15s # 每 15 秒评估一次规则
+
+# Alertmanager 配置 (此处为占位符)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# 抓取配置
+scrape_configs:
+  # 抓取 Prometheus 自身的指标
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # 抓取 APISIX 集群的指标
+  # APISIX 通过 prometheus 插件在 9091 端口暴露指标
+  - job_name: "apisix-cluster"
+    static_configs:
+      - targets:
+          # 这里硬编码了所有5个 APISIX 实例的 metrics-exporter 地址
+          # Ansible 部署时也可以动态生成这个列表
+          - '192.168.1.11:9091'
+          - '192.168.1.12:9091'
+          - '192.168.1.13:9091'
+          - '192.168.1.14:9091'
+          - '192.168.1.15:9091' 

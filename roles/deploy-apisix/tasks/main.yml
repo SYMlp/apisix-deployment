@@ -1,0 +1,54 @@
+---
+# tasks file for deploy-apisix role
+
+- name: 确保 APISIX 配置、数据和镜像临时目录存在
+  ansible.builtin.file:
+    path: "{{ deploy_base_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - conf
+    - apisix
+    - "{{ image_temp_dir }}"
+
+- name: 分发 APISIX 和 Dashboard Docker 镜像
+  ansible.builtin.copy:
+    src: "docker-images/{{ item.repo | replace('/', '_') }}-{{ item.tag }}.tar"
+    dest: "{{ image_temp_dir }}/{{ item.name }}.tar"
+  loop:
+    - { repo: "{{ apisix_image_repo }}", tag: "{{ apisix_image_tag }}", name: "apisix" }
+    - { repo: "{{ dashboard_image_repo }}", tag: "{{ dashboard_image_tag }}", name: "dashboard" }
+
+- name: 加载 APISIX 和 Dashboard Docker 镜像
+  ansible.builtin.shell: "docker load -i {{ image_temp_dir }}/{{ item }}.tar"
+  loop:
+    - apisix
+    - dashboard
+  changed_when: false
+
+- name: 渲染 docker-compose 文件
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ deploy_base_dir }}/conf/docker-compose.yml"
+
+- name: 渲染 APISIX 配置文件
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: "{{ deploy_base_dir }}/apisix/config.yaml"
+
+- name: 启动 APISIX 服务
+  ansible.builtin.shell: |
+    cd {{ deploy_base_dir }}/conf
+    docker-compose up -d --no-deps apisix
+  args:
+    chdir: "{{ deploy_base_dir }}"
+  changed_when: false
+
+- name: 启动 APISIX Dashboard 服务 (仅在监控节点上)
+  ansible.builtin.shell: |
+    cd {{ deploy_base_dir }}/conf
+    docker-compose up -d --no-deps apisix-dashboard
+  args:
+    chdir: "{{ deploy_base_dir }}"
+  changed_when: false
+  when: inventory_hostname in groups['monitoring_node'] 

@@ -1,0 +1,48 @@
+---
+# tasks file for deploy-monitoring role
+
+- name: 确保监控组件的配置、数据和镜像临时目录存在
+  ansible.builtin.file:
+    path: "{{ deploy_base_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - conf
+    - prometheus
+    - prometheus-data
+    - grafana-data
+    - "{{ image_temp_dir }}"
+
+- name: 分发 Prometheus 和 Grafana Docker 镜像
+  ansible.builtin.copy:
+    src: "docker-images/{{ item.repo | replace('/', '_') }}-{{ item.tag }}.tar"
+    dest: "{{ image_temp_dir }}/{{ item.name }}.tar"
+  loop:
+    - { repo: "{{ prometheus_image_repo }}", tag: "{{ prometheus_image_tag }}", name: "prometheus" }
+    - { repo: "{{ grafana_image_repo }}", tag: "{{ grafana_image_tag }}", name: "grafana" }
+
+- name: 加载 Prometheus 和 Grafana Docker 镜像
+  ansible.builtin.shell: "docker load -i {{ image_temp_dir }}/{{ item }}.tar"
+  loop:
+    - prometheus
+    - grafana
+  changed_when: false
+
+- name: 渲染 docker-compose 文件
+  ansible.builtin.template:
+    src: ../deploy-apisix/templates/docker-compose.yml.j2
+    dest: "{{ deploy_base_dir }}/conf/docker-compose.yml"
+    remote_src: no
+
+- name: 渲染 Prometheus 配置文件
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ deploy_base_dir }}/prometheus/prometheus.yml"
+
+- name: 启动 Prometheus 和 Grafana 服务
+  ansible.builtin.shell: |
+    cd {{ deploy_base_dir }}/conf
+    docker-compose up -d --no-deps prometheus grafana
+  args:
+    chdir: "{{ deploy_base_dir }}"
+  changed_when: false 

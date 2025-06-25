@@ -1,0 +1,41 @@
+# APISIX 的主配置文件 (config.yaml)
+# 该文件将被挂载到所有 APISIX 容器中
+
+# 部署和实例信息
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: etcd
+
+# etcd 集群配置
+etcd:
+  host:
+    # 这里列出了 etcd 集群的所有节点地址
+    # APISIX 会自动连接并从中选择一个可用的节点
+    - "http://192.168.1.11:2379"
+    - "http://192.168.1.12:2379"
+    - "http://192.168.1.13:2379"
+  prefix: "/apisix"
+  timeout: 60
+
+# 插件和服务配置
+plugins:
+  - "proxy-rewrite"
+  - "prometheus" # 启用 prometheus 插件以暴露监控指标
+  # - "limit-conn"
+  # - "limit-count"
+  # - "limit-req"
+  # - "key-auth"
+  # - "jwt-auth"
+
+# 允许 Admin API 从任何 IP 地址访问 (请注意生产环境的安全风险)
+# 在我们的方案中，Admin API 端口 9180 并未暴露到宿主机，而是通过内网访问
+allow_admin:
+  - 0.0.0.0/0
+
+# 启用 metrics exporter
+plugin_attr:
+  prometheus:
+    export_addr:
+      ip: 0.0.0.0
+      port: 9091 

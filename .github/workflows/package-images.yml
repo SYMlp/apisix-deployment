@@ -1,0 +1,61 @@
+name: Package ARM64 Docker Images
+
+# This workflow is triggered manually from the GitHub Actions tab
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-package-arm-images:
+    # This job runs on a fresh, clean ARM64 virtual machine provided by GitHub
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Set up QEMU for multi-platform builds
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Create output directory
+        run: mkdir -p docker_images_arm64
+
+      - name: Pull and Save Docker Images
+        run: |
+          IMAGES=(
+            "docker.io/bitnami/etcd:3.5.11"
+            "docker.io/apache/apisix:3.12.0"
+            "docker.io/apache/apisix-dashboard:3.0.1"
+            "docker.io/prom/prometheus:v2.25.0"
+            "docker.io/grafana/grafana:7.3.7"
+            "docker.io/nginx:1.19.0"
+          )
+
+          for IMAGE in "${IMAGES[@]}"; do
+            echo "-------------------------------------------------"
+            echo "Processing: $IMAGE for linux/arm64"
+            
+            # Use docker pull with --platform flag
+            docker pull --platform linux/arm64 "$IMAGE"
+            
+            # Reconstruct filename
+            REPO_NO_REGISTRY=$(echo "$IMAGE" | sed 's|docker.io/||')
+            REPO_PATH=$(echo "$REPO_NO_REGISTRY" | cut -d: -f1)
+            TAG=$(echo "$REPO_NO_REGISTRY" | cut -d: -f2)
+            SAFE_REPO_PATH=$(echo "$REPO_PATH" | tr '/' '_')
+            OUTPUT_FILENAME="docker_images_arm64/${SAFE_REPO_PATH}-${TAG}.tar"
+            
+            echo "Saving to $OUTPUT_FILENAME"
+            # Save the just-pulled image
+            docker save -o "$OUTPUT_FILENAME" "$IMAGE"
+            echo "[SUCCESS] Packaged $IMAGE"
+            echo "-------------------------------------------------"
+          done
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images-arm64-pack
+          path: docker_images_arm64 

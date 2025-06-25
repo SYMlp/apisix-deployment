@@ -1,0 +1,37 @@
+---
+# tasks file for deploy-etcd role
+
+- name: 创建 etcd 数据、配置和镜像临时目录
+  ansible.builtin.file:
+    path: "{{ deploy_base_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - etcd-data
+    - conf
+    - "{{ image_temp_dir }}"
+
+- name: 分发 etcd Docker 镜像
+  ansible.builtin.copy:
+    src: "docker-images/{{ etcd_image_repo | replace('/', '_') }}-{{ etcd_image_tag }}.tar"
+    dest: "{{ image_temp_dir }}/etcd.tar"
+
+- name: 加载 etcd Docker 镜像
+  ansible.builtin.shell: "docker load -i {{ image_temp_dir }}/etcd.tar"
+  changed_when: false
+
+- name: 渲染 docker-compose 文件到目标主机
+  ansible.builtin.template:
+    src: ../deploy-apisix/templates/docker-compose.yml.j2
+    dest: "{{ deploy_base_dir }}/conf/docker-compose.yml"
+    remote_src: no
+
+- name: 启动 etcd 服务
+  ansible.builtin.shell: |
+    export ETCD_NAME={{ etcd_name }}
+    export HOST_IP={{ inventory_hostname }}
+    cd {{ deploy_base_dir }}/conf
+    docker-compose up -d --no-deps etcd
+  args:
+    chdir: "{{ deploy_base_dir }}"
+  changed_when: false # shell 模块通常无法很好地判断状态，暂时设为 false 

@@ -1,0 +1,27 @@
+# APISIX 的主配置文件 (config.yaml)
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: etcd
+
+etcd:
+  host:
+    {% for host in groups['etcd_nodes'] %}
+    - "http://{{ host }}:{{ etcd_client_port }}"
+    {% endfor %}
+  prefix: "/apisix"
+  timeout: 60
+
+plugins:
+  - "proxy-rewrite"
+  - "prometheus"
+  # ...
+
+allow_admin:
+  - 0.0.0.0/0
+
+plugin_attr:
+  prometheus:
+    export_addr:
+      ip: 0.0.0.0
+      port: {{ apisix_metrics_port }} 

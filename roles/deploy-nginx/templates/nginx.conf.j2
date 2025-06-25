@@ -1,0 +1,41 @@
+# /etc/nginx/nginx.conf
+
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 768;
+}
+
+# 使用 stream 模块进行 TCP 负载均衡
+stream {
+    # 定义 APISIX 后端服务器集群
+    upstream apisix_cluster {
+        zone apisix_cluster 64k;
+        # 负载均衡算法 (least_conn: 最小连接数优先)
+        least_conn;
+
+        # 动态生成所有 APISIX 节点的 server 列表
+        {% for host in groups['apisix_nodes'] %}
+        server {{ host }}:{{ apisix_http_port }};
+        {% endfor %}
+    }
+
+    # 监听 80 端口，并将流量转发到 APISIX 集群
+    server {
+        listen {{ nginx_http_port }};
+        proxy_pass apisix_cluster;
+        proxy_timeout 10s;
+        proxy_connect_timeout 5s;
+    }
+
+    # 您可以在此添加 HTTPS (443) 的 server 块
+    # server {
+    #     listen {{ nginx_https_port }} ssl;
+    #     proxy_pass apisix_cluster;
+    #     ssl_certificate /path/to/your/cert.pem;
+    #     ssl_certificate_key /path/to/your/key.pem;
+    # }
+} 

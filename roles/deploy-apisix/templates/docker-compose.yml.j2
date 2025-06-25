@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  etcd:
+    image: "{{ etcd_image_repo }}:{{ etcd_image_tag }}"
+    container_name: etcd-node
+    restart: always
+    environment:
+      - "ETCD_NAME=${ETCD_NAME}"
+      - "HOST_IP=${HOST_IP}"
+      - "ALLOW_NONE_AUTHENTICATION=yes"
+      - "ETCD_ADVERTISE_CLIENT_URLS=http://${HOST_IP}:{{ etcd_client_port }}"
+    volumes:
+      - ../etcd-data:/bitnami/etcd/data
+    ports:
+      - "{{ etcd_client_port }}:{{ etcd_client_port }}"
+      - "{{ etcd_peer_port }}:{{ etcd_peer_port }}"
+    command:
+      - /opt/bitnami/etcd/bin/etcd
+      - --name=${ETCD_NAME}
+      - --listen-client-urls=http://0.0.0.0:{{ etcd_client_port }}
+      - --listen-peer-urls=http://0.0.0.0:{{ etcd_peer_port }}
+      - --initial-advertise-peer-urls=http://${HOST_IP}:{{ etcd_peer_port }}
+      - --initial-cluster={% for host in groups['etcd_nodes'] %}{{ hostvars[host]['etcd_name'] }}=http://{{ host }}:{{ etcd_peer_port }}{% if not loop.last %},{% endif %}{% endfor %}
+      - --initial-cluster-token=etcd-cluster-apisix
+      - --initial-cluster-state=new
+
+  apisix:
+    image: "{{ apisix_image_repo }}:{{ apisix_image_tag }}"
+    container_name: apisix-gateway
+    restart: always
+    depends_on:
+      - etcd
+    volumes:
+      - ../apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+    ports:
+      - "{{ apisix_http_port }}:{{ apisix_http_port }}"
+      - "{{ apisix_https_port }}:{{ apisix_https_port }}"
+      - "{{ apisix_metrics_port }}:{{ apisix_metrics_port }}"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  apisix-dashboard:
+    image: "{{ dashboard_image_repo }}:{{ dashboard_image_tag }}"
+    container_name: apisix-dashboard
+    restart: always
+    ports:
+      - "{{ apisix_dashboard_port }}:{{ apisix_dashboard_port }}"
+
+  prometheus:
+    image: "{{ prometheus_image_repo }}:{{ prometheus_image_tag }}"
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus-data:/prometheus
+    ports:
+      - "{{ prometheus_port }}:{{ prometheus_port }}"
+
+  grafana:
+    image: "{{ grafana_image_repo }}:{{ grafana_image_tag }}"
+    container_name: grafana
+    restart: always
+    volumes:
+      - ../grafana-data:/var/lib/grafana
+    ports:
+      - "{{ grafana_port }}:{{ grafana_port }}"
+
+  nginx:
+    image: "{{ nginx_image_repo }}:{{ nginx_image_tag }}"
+    container_name: nginx-lb
+    restart: always
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "{{ nginx_http_port }}:80"
+      - "{{ nginx_https_port }}:443"
+    depends_on:
+      - apisix 

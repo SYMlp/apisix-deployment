@@ -1,0 +1,96 @@
+version: "3.8"
+
+# 这是一个通用的 Docker Compose 文件模板
+# 它将被分发到所有5台服务器上，由 Ansible 根据主机角色有选择地启动服务
+
+services:
+  # --------------------------------------------------
+  # etcd 集群服务 (只在 192.168.1.11, .12, .13 启动)
+  # --------------------------------------------------
+  etcd:
+    # 使用 bitnami/etcd 镜像，它支持 arm64 架构
+    image: bitnami/etcd:3.5
+    container_name: etcd-node
+    restart: always
+    environment:
+      # 以下环境变量需要由 Ansible 在启动容器时动态传入
+      # 例如，在 192.168.1.11 上:
+      # ETCD_NAME=etcd-1
+      # HOST_IP=192.168.1.11
+      - "ETCD_NAME=${ETCD_NAME}"
+      - "HOST_IP=${HOST_IP}"
+      - "ALLOW_NONE_AUTHENTICATION=yes" # 开发环境允许无密码访问
+      - "ETCD_ADVERTISE_CLIENT_URLS=http://${HOST_IP}:2379"
+    volumes:
+      - ./etcd-data:/bitnami/etcd/data
+    ports:
+      - "2379:2379"
+      - "2380:2380"
+    command:
+      - /opt/bitnami/etcd/bin/etcd
+      - --name=${ETCD_NAME}
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --initial-advertise-peer-urls=http://${HOST_IP}:2380
+      - --initial-cluster=etcd-1=http://192.168.1.11:2380,etcd-2=http://192.168.1.12:2380,etcd-3=http://192.168.1.13:2380
+      - --initial-cluster-token=etcd-cluster-apisix
+      - --initial-cluster-state=new
+
+  # --------------------------------------------------
+  # APISIX 网关服务 (在所有5台服务器上启动)
+  # --------------------------------------------------
+  apisix:
+    # 使用 apache/apisix 官方镜像，它原生支持 arm64
+    image: apache/apisix:3.9.0-debian
+    container_name: apisix-gateway
+    restart: always
+    depends_on:
+      - etcd
+    volumes:
+      - ./apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+    ports:
+      - "9080:9080"
+      - "9180:9180"
+      - "9091:9091" # metrics exporter 端口
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+
+  # --------------------------------------------------
+  # APISIX Dashboard (只在 192.168.1.11 启动)
+  # --------------------------------------------------
+  apisix-dashboard:
+    # 使用 apache/apisix-dashboard 官方镜像，支持 arm64
+    image: apache/apisix-dashboard:3.0.1-alpine
+    container_name: apisix-dashboard
+    restart: always
+    ports:
+      - "9000:9000"
+
+  # --------------------------------------------------
+  # Prometheus 监控服务 (只在 192.168.1.11 启动)
+  # --------------------------------------------------
+  prometheus:
+    # 使用 prom/prometheus 镜像，支持 arm64
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  # --------------------------------------------------
+  # Grafana 可视化服务 (只在 192.168.1.11 启动)
+  # --------------------------------------------------
+  grafana:
+    # 使用 grafana/grafana 镜像，支持 arm64
+    image: grafana/grafana:11.0.0
+    container_name: grafana
+    restart: always
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000" 

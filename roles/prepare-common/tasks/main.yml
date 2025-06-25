@@ -1,0 +1,11 @@
+# tasks file for prepare-common role
+#
+# 这个角色负责所有节点通用的基础环境准备工作。
+
+- name: 创建部署根目录
+  ansible.builtin.file:
+    path: "{{ deploy_base_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"

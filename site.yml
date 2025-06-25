@@ -1,0 +1,40 @@
+---
+# ===================================================================
+# 主剧本 (Site Playbook)
+#
+# 该剧本是整个 APISIX 高可用集群部署的入口点。
+# 它会按顺序在指定的主机组上应用各个角色。
+#
+# 执行命令:
+# ansible-playbook -i inventory.ini site.yml
+# ===================================================================
+
+- name: 1. 准备所有节点的基础环境
+  hosts: all
+  become: true
+  roles:
+    - role: prepare-common
+
+- name: 2. 部署高可用的 etcd 集群
+  hosts: etcd_nodes
+  become: true
+  roles:
+    - role: deploy-etcd
+
+- name: 3. 部署 APISIX 和 Dashboard
+  hosts: apisix_nodes
+  become: true
+  roles:
+    - role: deploy-apisix
+
+- name: 4. 部署监控组件
+  hosts: monitoring_node
+  become: true
+  roles:
+    - role: deploy-monitoring
+
+- name: 5. 部署 Nginx 负载均衡器
+  hosts: nginx_nodes
+  become: true
+  roles:
+    - role: deploy-nginx 

@@ -1,0 +1,39 @@
+---
+# tasks file for deploy-nginx role
+
+- name: 确保 Nginx 配置和镜像临时目录存在
+  ansible.builtin.file:
+    path: "{{ deploy_base_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - conf
+    - "{{ image_temp_dir }}"
+
+- name: 分发 Nginx Docker 镜像
+  ansible.builtin.copy:
+    src: "docker-images/{{ nginx_image_repo | replace('/', '_') }}-{{ nginx_image_tag }}.tar"
+    dest: "{{ image_temp_dir }}/nginx.tar"
+
+- name: 加载 Nginx Docker 镜像
+  ansible.builtin.shell: "docker load -i {{ image_temp_dir }}/nginx.tar"
+  changed_when: false
+
+- name: 渲染 docker-compose 文件
+  ansible.builtin.template:
+    src: ../deploy-apisix/templates/docker-compose.yml.j2
+    dest: "{{ deploy_base_dir }}/conf/docker-compose.yml"
+    remote_src: no
+
+- name: 渲染 Nginx 配置文件
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ deploy_base_dir }}/conf/nginx.conf"
+
+- name: 启动 Nginx 服务
+  ansible.builtin.shell: |
+    cd {{ deploy_base_dir }}/conf
+    docker-compose up -d --no-deps nginx
+  args:
+    chdir: "{{ deploy_base_dir }}"
+  changed_when: false 
